@@ -1,32 +1,62 @@
-import { Component } from '@angular/core';
-
+import { Component, ElementRef, ViewChild } from "@angular/core";
+import { animationFrameScheduler, defer, interval } from "rxjs";
+import { endWith, map, takeWhile } from "rxjs/operators";
 @Component({
-  selector: 'app-root',
+  selector: "app-root",
   template: `
-    <!--The content below is only a placeholder and can be replaced.-->
-    <div style="text-align:center" class="content">
-      <h1>
-        Welcome to {{title}}!
-      </h1>
-      <span style="display: block">{{ title }} app is running!</span>
-      <img width="300" alt="Angular Logo" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTAgMjUwIj4KICAgIDxwYXRoIGZpbGw9IiNERDAwMzEiIGQ9Ik0xMjUgMzBMMzEuOSA2My4ybDE0LjIgMTIzLjFMMTI1IDIzMGw3OC45LTQzLjcgMTQuMi0xMjMuMXoiIC8+CiAgICA8cGF0aCBmaWxsPSIjQzMwMDJGIiBkPSJNMTI1IDMwdjIyLjItLjFWMjMwbDc4LjktNDMuNyAxNC4yLTEyMy4xTDEyNSAzMHoiIC8+CiAgICA8cGF0aCAgZmlsbD0iI0ZGRkZGRiIgZD0iTTEyNSA1Mi4xTDY2LjggMTgyLjZoMjEuN2wxMS43LTI5LjJoNDkuNGwxMS43IDI5LjJIMTgzTDEyNSA1Mi4xem0xNyA4My4zaC0zNGwxNy00MC45IDE3IDQwLjl6IiAvPgogIDwvc3ZnPg==">
+    <div #app id="app">
+      <img
+        #ditto
+        src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/132.png"
+        alt="pikachu"
+      />
     </div>
-    <h2>Here are some links to help you start: </h2>
-    <ul>
-      <li>
-        <h2><a target="_blank" rel="noopener" href="https://angular.io/tutorial">Tour of Heroes</a></h2>
-      </li>
-      <li>
-        <h2><a target="_blank" rel="noopener" href="https://angular.io/cli">CLI Documentation</a></h2>
-      </li>
-      <li>
-        <h2><a target="_blank" rel="noopener" href="https://blog.angular.io/">Angular blog</a></h2>
-      </li>
-    </ul>
     <router-outlet></router-outlet>
   `,
-  styles: []
+  styles: [],
 })
 export class AppComponent {
-  title = 'animationScheduler';
+  @ViewChild("app", { static: true, read: ElementRef })
+  divEl!: ElementRef<HTMLDivElement>;
+  @ViewChild("ditto", { static: true, read: ElementRef })
+  dittoEl!: ElementRef<HTMLImageElement>;
+  title = "animationScheduler";
+
+  animationPerSecond$ = defer(() => {
+    const scheduler = animationFrameScheduler;
+    const dateNow = scheduler.now();
+    return interval(1000 / 60, animationFrameScheduler).pipe(
+      map((_) => scheduler.now() - dateNow)
+    );
+  });
+
+  duration$ = this.animationPerSecond$;
+
+  ngOnInit(): void {
+    this.distance(500, 2500).subscribe((distance) => {
+      const dittoEl = this.dittoEl.nativeElement;
+      dittoEl.style.transform = `translate3D(${distance}px,0px,0px)`;
+    });
+  }
+
+  duration(ms: number) {
+    return this.animationPerSecond$.pipe(
+      map((ems) => this.easeInOutBack(ems / ms)),
+      takeWhile((t) => t <= 1),
+      endWith(1)
+    );
+  }
+
+  distance(pixel: number, duration = 1000) {
+    return this.duration(duration).pipe(map((percent) => percent * pixel));
+  }
+
+  easeInOutBack(x: number): number {
+    const c1 = 1.70158;
+    const c2 = c1 * 1.525;
+
+    return x < 0.5
+      ? (Math.pow(2 * x, 2) * ((c2 + 1) * 2 * x - c2)) / 2
+      : (Math.pow(2 * x - 2, 2) * ((c2 + 1) * (x * 2 - 2) + c2) + 2) / 2;
+  }
 }
